@@ -1,4 +1,8 @@
-import time
+# https://github.com/xitu/gold-miner/blob/master/TODO1/flask-video-streaming-revisited.md
+
+# https://blog.miguelgrinberg.com/post/flask-video-streaming-revisited
+
+import time, logging
 import threading
 try:
     from greenlet import getcurrent as get_ident
@@ -10,9 +14,7 @@ except ImportError:
 
 
 class CameraEvent(object):
-    """An Event-like class that signals all active clients when a new frame is
-    available.
-    """
+    """An Event-like class that signals all active clients when a new frame is available."""
     def __init__(self):
         self.events = {}
 
@@ -52,9 +54,9 @@ class CameraEvent(object):
 
 
 class BaseCamera(object):
-    thread = None  # background thread that reads frames from camera
-    frame = None  # current frame is stored here by background thread
-    last_access = 0  # time of last client access to the camera
+    thread = None       # background thread that reads frames from camera
+    frame = None        # current frame is stored here by background thread
+    last_access = 0     # time of last client access to the camera
     event = CameraEvent()
 
     def __init__(self):
@@ -84,15 +86,18 @@ class BaseCamera(object):
         """"Generator that returns frames from the camera."""
         raise RuntimeError('Must be implemented by subclasses.')
 
+    # Used to run in the background thread, continuously reading camera frames and notifying all clients that new frames are available.
     @classmethod
     def _thread(cls):
         """Camera background thread."""
         print('Starting camera thread.')
         frames_iterator = cls.frames()
+        logging.debug("frames_iterator")
         for frame in frames_iterator:
             BaseCamera.frame = frame
             BaseCamera.event.set()  # send signal to clients
-            time.sleep(0)
+            time.sleep(0)           # yield thread control;
+            '''time.sleep(0) is required for both eventlet and gevent, because they use cooperative multitasking. The way these frameworks achieve concurrency is by having each task release the CPU either by calling a function that does network I/O or explicitly. Since there is no I/O here, the sleep call is what achieves the CPU release.'''
 
             # if there hasn't been any clients asking for frames in
             # the last 10 seconds then stop the thread
@@ -100,4 +105,6 @@ class BaseCamera(object):
                 frames_iterator.close()
                 print('Stopping camera thread due to inactivity.')
                 break
-        BaseCamera.thread = None
+        BaseCamera.thread = None    # If there are no new frames, then STOP the thread
+
+        

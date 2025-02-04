@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 from importlib import import_module
-import os
+import os, logging
 from flask import Flask, render_template, Response
 
 # import camera driver
 if os.environ.get('CAMERA'):
     Camera = import_module('camera_' + os.environ['CAMERA']).Camera
 else:
-    from camera import Camera
+    # from camera import Camera
+    from camera_opencv import Camera
 
 # Raspberry Pi camera module (requires picamera package)
 # from camera_pi import Camera
@@ -32,9 +33,9 @@ def gen(camera):
 @app.route('/video_feed')
 def video_feed():
     """Video streaming route. Put this in the src attribute of an img tag."""
-    return Response(gen(Camera()),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response( gen(Camera()), mimetype='multipart/x-mixed-replace; boundary=frame' )
 
 
 if __name__ == '__main__':
+    logging.basicConfig( level=logging.DEBUG, format='%(levelname)s:%(asctime)s:  %(message)s', datefmt='%Y-%d-%m %H:%M:%S')
     app.run(host='0.0.0.0', threaded=True)
